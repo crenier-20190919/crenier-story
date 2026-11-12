@@ -1,0 +1,47 @@
+name: 営業開始ストーリー
+
+on:
+  schedule:
+    # 毎日 9:20(日本時間)に起動。GitHubの混雑で数分〜30分ほど遅れることがあります
+    - cron: "20 0 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "休みの日・投稿済みでも投稿する(テスト用)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: story
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install jpholiday
+
+      - name: ストーリーを投稿
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          FORCE: ${{ inputs.force }}
+        run: python post_story.py
+
+      - name: 順番を記録
+        run: |
+          if ! git diff --quiet state.json; then
+            git config user.name "story-bot"
+            git config user.email "story-bot@users.noreply.github.com"
+            git add state.json
+            git commit -m "posted $(TZ=Asia/Tokyo date +%F)"
+            git push
+          fi
