@@ -2,8 +2,9 @@ name: 営業開始ストーリー
 
 on:
   schedule:
-    # 毎日 9:20(日本時間)に起動。GitHubの混雑で数分〜30分ほど遅れることがあります
-    - cron: "20 0 * * *"
+    # 毎日 8:15(日本時間)に起動。GitHubの混雑で遅れることがあるので早めに起動し、
+    # 9:28 より前に動いたときは 9:28 まで待ってから投稿する
+    - cron: "15 23 * * *"
   workflow_dispatch:
     inputs:
       force:
@@ -22,6 +23,16 @@ jobs:
   post:
     runs-on: ubuntu-latest
     steps:
+      - name: 9:28(日本時間)まで待つ
+        if: github.event_name == 'schedule'
+        run: |
+          target=$(TZ=Asia/Tokyo date -d "09:28" +%s)
+          now=$(date +%s)
+          if [ "$now" -lt "$target" ]; then
+            echo "$(( (target - now) / 60 ))分待ちます"
+            sleep $(( target - now ))
+          fi
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
